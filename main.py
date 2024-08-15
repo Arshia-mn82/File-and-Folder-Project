@@ -176,3 +176,157 @@ class FileSystem:
 
             self.current_folder = folder
 
+def find_parent(self, folder):
+        """
+        Finds the parent folder of the given folder.
+
+        Parameters:
+        -----------
+        folder : Folder
+            The folder whose parent is to be found.
+
+        Returns:
+        --------
+        Folder
+            The parent folder.
+        """
+        for item in self.root.contents.values():
+            if isinstance(item, Folder) and folder in item.contents.values():
+                return item
+        return self.root  # Return root if no parent found (or handle appropriately)
+
+    def list_directory(self):
+        """Lists the contents of the current folder."""
+        return self.current_folder.list_contents()
+
+    def create_folder(self, path=None, name=None):
+        """
+        Creates a new folder at the specified path or in the current directory if no path is provided.
+
+        Parameters:
+        -----------
+        path : str, optional
+            The path where the folder should be created. If not provided, the folder will be created in the current directory.
+        name : str
+            The name of the new folder.
+        """
+        if name is None:
+            # If only path is provided, treat it as the folder name in the current directory
+            name = path
+            folder = self.current_folder
+        else:
+            if path is None:
+                # If only name is provided, create the folder in the current directory
+                folder = self.current_folder
+            else:
+                # If both path and name are provided, navigate to the specified path
+                folder = self.root if path.startswith("/") else self.current_folder
+                path_parts = path.strip("/").split("/")
+                for part in path_parts:
+                    folder = folder.get(part)
+                    if not isinstance(folder, Folder):
+                        raise ValueError(f"Invalid path: '{path}' does not exist or is not a folder.")
+
+        if name in folder.contents:
+            raise ValueError(f"A file or folder with the name '{name}' already exists.")
+
+        new_folder = Folder(name)
+        folder.add(new_folder)
+
+    def create_file(self, path, content=""):
+        """
+        Creates a new file at the specified path.
+        If only a filename is provided, it will create the file in the current directory.
+
+        Parameters:
+        -----------
+        path : str
+            The path where the file should be created, or the filename if no path is provided.
+        content : str, optional
+            The initial content of the file. Default is an empty string.
+        """
+        path_parts = path.strip("/").split("/")
+        filename = path_parts.pop()
+
+        folder = self.current_folder
+        if path_parts:
+            folder = self.root if path.startswith("/") else self.current_folder
+            for part in path_parts:
+                folder = folder.get(part)
+                if not isinstance(folder, Folder):
+                    raise ValueError(f"Folder '{part}' does not exist.")
+
+        if filename in folder.contents:
+            raise ValueError(f"File '{filename}' already exists.")
+        folder.contents[filename] = File(filename, content)
+
+    def read_file(self, path):
+        """
+        Reads the contents of the specified file.
+
+        Parameters:
+        -----------
+        path : str
+            The path to the file.
+        """
+        path_parts = path.strip("/").split("/")
+        filename = path_parts.pop()
+        folder = self.root if path.startswith("/") else self.current_folder
+
+        for part in path_parts:
+            folder = folder.get(part)
+            if not isinstance(folder, Folder):
+                raise ValueError("Invalid path")
+
+        file = folder.get(filename)
+        if isinstance(file, File):
+            return file.read()
+        else:
+            raise ValueError("Specified path is not a file")
+
+    def move(self, source_path, destination_path):
+        """
+        Moves a file or folder from one location to another.
+
+        Parameters:
+        -----------
+        source_path : str
+            The path of the file or folder to move.
+        destination_path : str
+            The path where the file or folder should be moved to.
+        """
+        # Handle absolute paths
+        if source_path.startswith("/"):
+            src_parts = source_path.strip("/").split("/")
+            src_name = src_parts.pop()
+            src_folder = self.root
+        else:
+            src_parts = source_path.strip("/").split("/")
+            src_name = src_parts.pop()
+            src_folder = self.current_folder
+
+        for part in src_parts:
+            src_folder = src_folder.get(part)
+            if not isinstance(src_folder, Folder):
+                raise ValueError("Invalid source path")
+
+        item = src_folder.get(src_name)
+
+        # Handle absolute paths
+        if destination_path.startswith("/"):
+            dest_parts = destination_path.strip("/").split("/")
+            dest_name = dest_parts.pop()
+            dest_folder = self.root
+        else:
+            dest_parts = destination_path.strip("/").split("/")
+            dest_name = dest_parts.pop()
+            dest_folder = self.current_folder
+
+        for part in dest_parts:
+            dest_folder = dest_folder.get(part)
+            if not isinstance(dest_folder, Folder):
+                raise ValueError("Invalid destination path")
+
+        src_folder.remove(src_name)
+        item.name = dest_name
+        dest_folder.add(item)
