@@ -176,7 +176,7 @@ class FileSystem:
 
             self.current_folder = folder
 
-def find_parent(self, folder):
+    def find_parent(self, folder):
         """
         Finds the parent folder of the given folder.
 
@@ -330,3 +330,147 @@ def find_parent(self, folder):
         src_folder.remove(src_name)
         item.name = dest_name
         dest_folder.add(item)
+
+    def copy(self, source_path, destination_path):
+        """
+        Copies a file or folder from one location to another.
+
+        Parameters:
+        -----------
+        source_path : str
+            The path of the file or folder to copy.
+        destination_path : str
+            The path where the file or folder should be copied to.
+        """
+        # Handle absolute paths
+        if source_path.startswith("/"):
+            src_parts = source_path.strip("/").split("/")
+            src_name = src_parts.pop()
+            src_folder = self.root
+        else:
+            src_parts = source_path.strip("/").split("/")
+            src_name = src_parts.pop()
+            src_folder = self.current_folder
+
+        for part in src_parts:
+            src_folder = src_folder.get(part)
+            if not isinstance(src_folder, Folder):
+                raise ValueError("Invalid source path")
+
+        item = src_folder.get(src_name)
+
+        # Handle absolute paths
+        if destination_path.startswith("/"):
+            dest_parts = destination_path.strip("/").split("/")
+            dest_name = dest_parts.pop()
+            dest_folder = self.root
+        else:
+            dest_parts = destination_path.strip("/").split("/")
+            dest_name = dest_parts.pop()
+            dest_folder = self.current_folder
+
+        for part in dest_parts:
+            dest_folder = dest_folder.get(part)
+            if not isinstance(dest_folder, Folder):
+                raise ValueError("Invalid destination path")
+
+        if isinstance(item, File):
+            new_item = File(dest_name, item.read())
+        else:
+            new_item = Folder(dest_name)
+            new_item.contents = item.contents.copy()
+
+        dest_folder.add(new_item)
+
+    def delete(self, path):
+        """
+        Deletes a file or folder at the specified path.
+
+        Parameters:
+        -----------
+        path : str
+            The path of the file or folder to delete.
+        """
+        path_parts = path.strip("/").split("/")
+        name = path_parts.pop()
+        folder = self.root if path.startswith("/") else self.current_folder
+
+        for part in path_parts:
+            folder = folder.get(part)
+            if not isinstance(folder, Folder):
+                raise ValueError("Invalid path")
+
+        folder.remove(name)
+
+    def rename(self, path, new_name):
+        """
+        Renames a file or folder at the specified path.
+
+        Parameters:
+        -----------
+        path : str
+            The path of the file or folder to rename.
+        new_name : str
+            The new name for the file or folder.
+        """
+        path_parts = path.strip("/").split("/")
+        name = path_parts.pop()
+        folder = self.root if path.startswith("/") else self.current_folder
+
+        for part in path_parts:
+            folder = folder.get(part)
+            if not isinstance(folder, Folder):
+                raise ValueError("Invalid path")
+
+        item = folder.get(name)
+        folder.remove(name)
+        item.name = new_name
+        folder.add(item)
+
+    def search(self, name, folder=None):
+        """
+        Searches for files or folders with a specific name in the current folder or a specified folder.
+
+        Parameters:
+        -----------
+        name : str
+            The name to search for.
+        folder : Folder, optional
+            The folder to search in. Default is the current folder.
+        """
+        if folder is None:
+            folder = self.current_folder
+
+        results = []
+
+        for item_name, item in folder.contents.items():
+            if item_name == name:
+                results.append(f"{self.get_full_path()}/{item_name}")
+            if isinstance(item, Folder):
+                results.extend(self.search(name, item))
+
+        return results
+
+    def search_by_extension(self, extension, folder=None):
+        """
+        Searches for files with a specific extension in the current folder or a specified folder.
+
+        Parameters:
+        -----------
+        extension : str
+            The file extension to search for, e.g., 'py'.
+        folder : Folder, optional
+            The folder to search in. Default is the current folder.
+        """
+        if folder is None:
+            folder = self.current_folder
+
+        results = []
+
+        for item_name, item in folder.contents.items():
+            if isinstance(item, File) and item_name.endswith(extension):
+                results.append(f"{self.get_full_path()}/{item_name}")
+            if isinstance(item, Folder):
+                results.extend(self.search_by_extension(extension, item))
+
+        return results
