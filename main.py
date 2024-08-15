@@ -474,3 +474,170 @@ class FileSystem:
                 results.extend(self.search_by_extension(extension, item))
 
         return results
+
+    def save_state(self, filename):
+        """
+        Saves the current state of the file system to a file.
+
+        Parameters:
+        -----------
+        filename : str
+            The name of the file to save the state to.
+        """
+        with open(filename, "w") as f:
+            self._save_folder(self.root, f)
+
+    def _save_folder(self, folder, file):
+        """
+        Recursively saves the contents of a folder to a file.
+
+        Parameters:
+        -----------
+        folder : Folder
+            The folder to save.
+        file : file object
+            The file to write the folder contents to.
+        """
+        for item_name, item in folder.contents.items():
+            if isinstance(item, File):
+                file.write(f"File: {self.get_full_path()}/\n")
+                for line in item.data:
+                    file.write(f"{line}\n")
+            elif isinstance(item, Folder):
+                file.write(f"Folder: {self.get_full_path()}/\n")
+                self._save_folder(item, file)
+
+    def fragment(self, filename):
+        """
+        Removes empty lines from a file and shifts all lines up.
+
+        Parameters:
+        -----------
+        filename : str
+            The name of the file to fragment.
+        """
+        with open(filename, "r") as f:
+            lines = f.readlines()
+
+        with open(filename, "w") as f:
+            for line in lines:
+                if line.strip():
+                    f.write(line)
+
+    def append_to_file(self, path, content):
+        """
+        Appends content to an existing file.
+
+        Parameters:
+        -----------
+        path : str
+            The path to the file.
+        content : str
+            The content to append to the file.
+        """
+        parts = path.split("/")
+        filename = parts.pop()
+        folder = self.root if path.startswith("/") else self.current_folder
+        for part in parts:
+            folder = folder.get(part)
+            if not isinstance(folder, Folder):
+                raise ValueError("Invalid path")
+        file = folder.get(filename)
+        if isinstance(file, File):
+            file.append(content)
+        else:
+            raise ValueError("Specified path is not a file")
+
+    def get_current_folder(self):
+        """
+        Returns the name of the current folder as a string.
+        """
+        return self.get_full_path()
+
+def run():
+    fs = FileSystem()
+    print("Welcome to the custom file system!")
+    print("Enter your commands below. Type 'exit' to quit.")
+
+    while True:
+        current_path = fs.get_full_path()
+        command = input(f"{current_path}$ ").strip()
+
+        if command == "exit":
+            break
+
+        try:
+            if command.startswith("cd "):
+                path = command[3:].strip()
+                fs.change_directory(path)
+
+            elif command == "ls":
+                contents = fs.list_directory()
+                for item in contents:
+                    print(item)
+
+            elif command.startswith("cat "):
+                path = command[4:].strip()
+                print(fs.read_file(path))
+
+            elif command.startswith("mv "):
+                paths = command[3:].strip().split()
+                if len(paths) == 2:
+                    fs.move(paths[0], paths[1])
+
+            elif command.startswith("cp "):
+                paths = command[3:].strip().split()
+                if len(paths) == 2:
+                    fs.copy(paths[0], paths[1])
+
+            elif command.startswith("rm "):
+                path = command[3:].strip()
+                fs.delete(path)
+
+            elif command.startswith("mkdir "):
+                parts = command[6:].strip().split(maxsplit=1)
+                if len(parts) == 1:
+                    fs.create_folder(name=parts[0])
+                elif len(parts) == 2:
+                    fs.create_folder(path=parts[0], name=parts[1])
+
+            elif command.startswith("rename "):
+                parts = command[7:].strip().split()
+                if len(parts) == 2:
+                    fs.rename(parts[0], parts[1])
+
+            elif command.startswith("search "):
+                name = command[7:].strip()
+                results = fs.search(name)
+                for result in results:
+                    print(result)
+
+            elif command.startswith("search_ext "):
+                extension = command[11:].strip()
+                results = fs.search_by_extension(extension)
+                for result in results:
+                    print(result)
+
+            elif command.startswith("save "):
+                filename = command[5:].strip()
+                fs.save_state(filename)
+
+            elif command.startswith("fragment "):
+                filename = command[9:].strip()
+                fs.fragment(filename)
+
+            elif command.startswith("touch "):
+                path = command[6:].strip()
+                fs.create_file(path)
+
+            elif command.startswith("append "):
+                parts = command[7:].strip().split(maxsplit=1)
+                if len(parts) == 2:
+                    fs.append_to_file(parts[0], parts[1])
+
+            else:
+                print("Unknown command")
+        except ValueError as e:
+            print(f"Error: {e}")
+
+run()
